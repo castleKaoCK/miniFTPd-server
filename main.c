@@ -72,15 +72,15 @@ int main(void)
 		/*数据连接*/
 		NULL, -1, -1,
 		/*限速*/
-//		0, 0, 0, 0,
+		0, 0, 0, 0,
 		/*父子进程通道*/
 		-1, -1,
 		/*FTP协议状态*/
 		0, 0, NULL
 	};
 
-	//sess.bw_upload_rate_max = tunable_upload_max_rate;
-	//sess.bw_download_rate_max = tunable_download_max_rate;
+	sess.bw_upload_rate_max = tunable_upload_max_rate;
+	sess.bw_download_rate_max = tunable_download_max_rate;
 
 	signal(SIGCHLD, SIG_IGN);	//忽略子进程结束信号
 	signal(SIGPIPE, pipe_handler);

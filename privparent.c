@@ -50,7 +50,8 @@ void minimize_privilege(void)
  */
 void handle_parent(session_t *sess)
 {
-
+	printf("handle_parent  sess->parent_fd:%d  child_fd:%d\n", sess->parent_fd, sess->child_fd);
+	
 	minimize_privilege();
 
 	char cmd;

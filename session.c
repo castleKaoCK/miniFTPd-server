@@ -10,8 +10,12 @@ void begin_session(session_t *sess)
 	int sockfds[2];	//父子进程通信套接字
 	if( socketpair(PF_UNIX, SOCK_STREAM, 0, sockfds) < 0)
 		ERR_EXIT("socketpair");
+	sess->parent_fd = sockfds[1];
+	sess->child_fd = sockfds[0];
 	*/
 	priv_sock_init(sess);	//父子进程通信初始化
+
+	printf("begin_session sess->child_fd:%d  parent_fd:%d\n",sess->child_fd, sess->parent_fd);
 
 	pid_t	pid;
 	pid = fork();

@@ -113,6 +113,7 @@ static ftpcmd_t ctrl_cmds[] = {
 
 void handle_child(session_t *sess)
 {
+	printf("handle_child sess->child_fd:%d\n",sess->child_fd);
 	ftp_reply(sess, FTP_GREET, "(miniftpd 0.1)");	//连接成功发送给客户端信息
 	int ret;
 
@@ -256,7 +257,7 @@ int list_common(session_t * sess, int detail)
 
 	return 1;
 }
-/*
+
 void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 {
 
@@ -268,6 +269,11 @@ void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 	double elapsed;
 	elapsed = curr_sec - sess->bw_transfer_start_sec;
 	elapsed += (double)(curr_usec - sess->bw_transfer_start_usec) / (double)1000000;
+	if(elapsed <= 0)
+	{
+		elapsed = 0.01;
+	}
+
 
 	//计算当前传输速度
 	unsigned int bw_rate = (unsigned int)((double)bytes_transfered / elapsed);
@@ -306,7 +312,7 @@ void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 	sess->bw_transfer_start_usec = get_time_usec();
 
 }
-*/
+
 void upload_common(session_t *sess, int is_append)
 {
 	//上传文件
@@ -400,8 +406,8 @@ void upload_common(session_t *sess, int is_append)
 	int flag = 0;
 	char buf[1024];
 	//睡眠时间 = （当前传输速度 / 最大传输速度 - 1）* 当前传输时间
-	//sess->bw_transfer_start_sec = get_time_sec();	//开始计时
-	//sess->bw_transfer_start_usec = get_time_usec();	
+	sess->bw_transfer_start_sec = get_time_sec();	//开始计时
+	sess->bw_transfer_start_usec = get_time_usec();	
 
 	//		每传输一块就需要2次系统调用，效率不高
 	while(1)
@@ -424,7 +430,7 @@ void upload_common(session_t *sess, int is_append)
 		}
 		
 		
-		//limit_rate(sess, ret, 1);	//上传限速
+		limit_rate(sess, ret, 1);	//上传限速
 		
 		if(writen(fd, buf, ret) != ret)
 		{
@@ -627,6 +633,8 @@ int get_transfer_fd(session_t *sess)
 
 static void do_user(session_t *sess)
 {
+	printf("do_user sess->child_fd:%d\n",sess->child_fd);
+	
 	struct passwd *pw = getpwnam(sess->arg);
 	if(pw == NULL)
 	{
@@ -727,7 +735,8 @@ static void do_port(session_t *sess)
 }
 static void do_pasv(session_t *sess)
 {
-	
+	printf("do_pasv sess->child_fd:%d\n",sess->child_fd);
+
 	char ip[16] = {0};
 	//getlocalip(ip);
 	getLocalIP(ip);
@@ -887,6 +896,11 @@ static void do_retr(session_t *sess)
 	{
 		bytes_to_send -= offset;	//除去断点位置的大小
 	}
+	
+	//设置本次传输开始时间
+	sess->bw_transfer_start_sec = get_time_sec();
+	sess->bw_transfer_start_usec = get_time_usec();
+
 	while(bytes_to_send)
 	{
 		int num_this_time = (bytes_to_send > 4096 ? 4096 : bytes_to_send);
@@ -896,6 +910,9 @@ static void do_retr(session_t *sess)
 			flag = 2;
 			break;
 		}
+		
+		//下载限速
+		limit_rate(sess, ret, 0);
 
 		bytes_to_send -= ret;
 	}
@@ -1076,6 +1093,8 @@ static void do_rnto(session_t *sess)
 static void do_site(session_t *sess){}
 static void do_syst(session_t *sess)
 {
+
+	printf("do_syst sess->child_fd:%d\n",sess->child_fd);
 	ftp_reply(sess, FTP_SYSTOK, "UNIX Type: L8");
 }
 static void do_feat(session_t *sess)

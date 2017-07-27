@@ -19,13 +19,13 @@ typedef struct session{
 	int pasv_listen_fd;	//被动模式的监听套接字
 	int data_fd;	//根据数据连接地址创建的套接字
 
-/*
+
 	//限速
 	unsigned int bw_upload_rate_max;
 	unsigned int bw_download_rate_max;
 	long bw_transfer_start_sec;	//开始传输的时间
 	long bw_transfer_start_usec;
-*/
+
 	//父子进程通道
 	int parent_fd;
 	int child_fd;
