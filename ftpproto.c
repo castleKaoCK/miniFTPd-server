@@ -344,8 +344,13 @@ void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 		if(bw_rate <= sess->bw_upload_rate_max)
 		{
 			//不需要限速
+<<<<<<< HEAD
 			sess->bw_transfer_start_sec = curr_sec;
 			sess->bw_transfer_start_usec = curr_usec;
+=======
+			sess->bw_transfer_start_sec = get_time_sec();
+			sess->bw_transfer_start_usec = get_time_usec();
+>>>>>>> 3562eaf9c1e99435ad096de927b70eb5017bd32d
 			return ;
 		}
 
@@ -356,8 +361,13 @@ void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 		if(bw_rate <= sess->bw_download_rate_max)
 		{
 			//不需要限速
+<<<<<<< HEAD
 			sess->bw_transfer_start_sec = curr_sec;
 			sess->bw_transfer_start_usec = curr_usec;
+=======
+			sess->bw_transfer_start_sec = get_time_sec();
+			sess->bw_transfer_start_usec = get_time_usec();
+>>>>>>> 3562eaf9c1e99435ad096de927b70eb5017bd32d
 			return ;
 		}
 
