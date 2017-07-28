@@ -18,7 +18,7 @@ typedef struct session{
 	struct sockaddr_in *port_addr;	//将要连接的数据连接地址
 	int pasv_listen_fd;	//被动模式的监听套接字
 	int data_fd;	//根据数据连接地址创建的套接字
-
+	int data_process;	//当前是否处于数据传输状态
 
 	//限速
 	unsigned int bw_upload_rate_max;

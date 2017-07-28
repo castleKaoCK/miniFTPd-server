@@ -11,6 +11,7 @@ void pipe_handler()
 	printf("pipe\n");
 }
 
+extern session_t *p_sess;
 
 int main(void)
 {
@@ -47,7 +48,7 @@ int main(void)
 	printf("tunable_accept_timeout=%u\n", tunable_accept_timeout);
 	printf("tunable_connect_timeout=%u\n", tunable_connect_timeout);
 	printf("tunable_idle_session_timeout=%u\n", tunable_idle_session_timeout);
-	printf("tunable_data_connecion_timeout=%u\n", tunable_data_connecion_timeout);
+	printf("tunable_data_connection_timeout=%u\n", tunable_data_connection_timeout);
 	printf("tunable_local_umask=0%o\n", tunable_local_umask);
 	printf("tunable_upload_max_rate=%u\n", tunable_upload_max_rate);
 	printf("tunable_download_max_rate=%u\n", tunable_download_max_rate);
@@ -70,7 +71,7 @@ int main(void)
 		/*控制连接*/
 		0, -1, "", "", "",
 		/*数据连接*/
-		NULL, -1, -1,
+		NULL, -1, -1, 0,
 		/*限速*/
 		0, 0, 0, 0,
 		/*父子进程通道*/
@@ -78,6 +79,8 @@ int main(void)
 		/*FTP协议状态*/
 		0, 0, NULL
 	};
+
+	p_sess = &sess;
 
 	sess.bw_upload_rate_max = tunable_upload_max_rate;
 	sess.bw_download_rate_max = tunable_download_max_rate;

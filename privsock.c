@@ -36,6 +36,7 @@ void priv_sock_set_parent_context(session_t *sess)
 		printf("priv_sock parent_fd:%d\n",sess->parent_fd);
 		close(sess->child_fd);	//关闭不需要的子进程文件描述符
 		sess->child_fd = -1;
+		printf("priv_sock parent_fd:%d   child_fd:%d\n",sess->parent_fd, sess->child_fd);
 	}
 }
 void priv_sock_set_child_context(session_t *sess)
@@ -45,6 +46,7 @@ void priv_sock_set_child_context(session_t *sess)
 		printf("priv_sock child_fd:%d\n",sess->child_fd);
 		close(sess->parent_fd);	//关闭不需要的父进程文件描述符
 		sess->parent_fd = -1;
+		printf("priv_sock child_fd:%d   parent_fd:%d\n",sess->child_fd, sess->parent_fd);
 	}
 }
 
@@ -70,7 +72,7 @@ char priv_sock_get_cmd(int fd)
 	
 	if(ret == 0 )
 	{
-		fprintf(stdout, "priv_sock_get_cmd: service process quit\n");
+		fprintf(stdout, "priv_sock_get_cmd: FTP service process exit\n");
 		exit(EXIT_SUCCESS);
 	}
 	else if(ret != sizeof(res))
@@ -120,7 +122,9 @@ int		priv_sock_get_int(int fd)					//接收一个整数
 {
 	int the_int;
 	int ret;
+	printf("priv_sock_get_int begin fd:%d\n", fd);
 	ret = readn(fd, &the_int, sizeof(the_int));
+	printf("priv_sock_get_int end fd:%d\n", fd);
 	if(ret != sizeof(the_int))
 	{
 		fprintf(stderr, "priv_sock_get_int error\n");

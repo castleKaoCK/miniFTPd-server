@@ -9,7 +9,7 @@ extern unsigned int tunable_max_per_ip;
 extern unsigned int tunable_accept_timeout;
 extern unsigned int tunable_connect_timeout;
 extern unsigned int tunable_idle_session_timeout;
-extern unsigned int tunable_data_connecion_timeout;
+extern unsigned int tunable_data_connection_timeout;
 extern unsigned int tunable_local_umask;
 extern unsigned int tunable_upload_max_rate;
 extern unsigned int tunable_download_max_rate;

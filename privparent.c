@@ -60,7 +60,9 @@ void handle_parent(session_t *sess)
 		//read(sess->parent_fd, &cmd, 1);
 		//接收服务子进程内部命令
 		//子进程套接字关闭时，父进程会在priv_sock_get_cmd关闭
+	printf("handle_parent   get_cmd_begin  sess->parent_fd:%d  child_fd:%d\n", sess->parent_fd, sess->child_fd);
 		cmd = priv_sock_get_cmd(sess->parent_fd);	
+	printf("handle_parent   get_cmd_end sess->parent_fd:%d  child_fd:%d\n", sess->parent_fd, sess->child_fd);
 		//解析内部命令
 		//处理内部命令
 

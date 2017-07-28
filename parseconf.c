@@ -33,7 +33,7 @@ parseconf_uint_array[] =
 	{"accept_timeout", &tunable_accept_timeout},
 	{"connect_timeout", &tunable_connect_timeout},
 	{"idle_session_timeout", &tunable_idle_session_timeout},
-	{"data_connecion_timeout", &tunable_data_connecion_timeout},
+	{"data_connection_timeout", &tunable_data_connection_timeout},
 	{"local_umask", &tunable_local_umask},
 	{"upload_max_rate", &tunable_upload_max_rate},
 	{"download_max_rate", &tunable_download_max_rate},
