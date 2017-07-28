@@ -49,5 +49,7 @@ long get_time_sec(void);
 long get_time_usec(void);
 void nano_sleep(double seconds);	//指定进程睡眠时间
 
+void activate_oobinline(int fd);	//开启fd接收带外数据的功能
+void activate_sigurg(int fd);		//设定当前进程能够接收fd文件描述符产生的SIGURG信号
 
 #endif	//_SYSUTIL_H

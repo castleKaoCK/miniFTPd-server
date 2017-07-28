@@ -3,9 +3,12 @@
 #include "ftpproto.h"
 #include "privparent.h"
 #include "privsock.h"
+#include "sysutil.h"
+
 
 void begin_session(session_t *sess)
 {
+	activate_oobinline(sess->ctrl_fd);
 	/*
 	int sockfds[2];	//父子进程通信套接字
 	if( socketpair(PF_UNIX, SOCK_STREAM, 0, sockfds) < 0)

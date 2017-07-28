@@ -13,6 +13,11 @@ void ftp_reply(session_t *sess, int status, const char *text);
 void ftp_lreply(session_t *sess, int status, const char *text);
 
 void handle_alarm_timeout(int sig);
+void handle_sigalrm(int sig);
+void handle_sigurg(int sig);
+
+void check_abor(session_t *sess);
+
 void start_cmdio_alarm();
 void start_data_alarm();
 
@@ -135,6 +140,41 @@ void handle_sigalrm(int sig)
 	//当前处于数据传输状态收到超时信号
 	p_sess->data_process = 0;
 	start_data_alarm();
+}
+
+void handle_sigurg(int sig)
+{
+	if(p_sess->data_fd == -1)
+	{
+		return ;
+	}
+
+	char cmdline[MAX_COMMAND_LINE] = {0};
+	int ret = readline(p_sess->ctrl_fd, cmdline, MAX_COMMAND_LINE);	//接收客户端命令行
+	if(ret <= 0)
+	{
+		ERR_EXIT("readline");
+	}
+	str_trim_crlf(cmdline);	//去除\r\n
+	if(strcmp(cmdline, "ABOR") == 0
+		|| strcmp(cmdline, "\377\364\377\362ABOR") == 0)
+	{
+		p_sess->abor_received = 1;
+		shutdown(p_sess->data_fd, SHUT_RDWR);	//断开数据连接通道
+	}
+	else
+	{
+		ftp_reply(p_sess, FTP_BADCMD, "Unknown commond.");	//500
+	}
+}
+
+void check_abor(session_t *sess)
+{
+	if(sess->abor_received)
+	{
+		sess->abor_received = 0;
+		ftp_reply(p_sess, FTP_ABOROK, "ABOR successful.");	//226
+	}
 }
 
 void start_cmdio_alarm()
@@ -498,7 +538,12 @@ void upload_common(session_t *sess, int is_append)
 		
 		
 		limit_rate(sess, ret, 1);	//上传限速
-		
+		if(sess->abor_received)	//睡眠时收到ABOR命令
+		{
+			flag = 2;	//给客户端426应答
+			break;
+		}
+
 		if(writen(fd, buf, ret) != ret)
 		{
 			flag = 1;		//写入本地文件失败
@@ -513,7 +558,7 @@ void upload_common(session_t *sess, int is_append)
 	sess->data_fd = -1;
 	sess->port_addr = NULL;
 
-	if(flag == 0)	//传输成功
+	if(flag == 0 && !sess->abor_received)	//传输成功
 	{
 		//响应226
 		ftp_reply(sess, FTP_TRANSFEROK, "Transfer complete.");
@@ -531,6 +576,7 @@ void upload_common(session_t *sess, int is_append)
 
 	close(fd);
 
+	check_abor(sess);
 	start_cmdio_alarm();	//重启控制连接通道闹钟
 
 }
@@ -752,7 +798,10 @@ static void do_pass(session_t *sess)
 		ftp_reply(sess, FTP_LOGINERR, "4Login incorrect.");
 		return ;
 	}
-	
+
+
+	signal(SIGURG, handle_sigurg);	//设置SIGURG信号处理函数
+	activate_sigurg(sess->ctrl_fd);	//开启套接字接收SIGURG信号的功能
 
 	//进程用户切换回登录用户
 	umask(tunable_local_umask);
@@ -787,7 +836,11 @@ static void do_cdup(session_t *sess)
 	}
 	ftp_reply(sess, FTP_CWDOK, "Directory successfully changed.");
 }
-static void do_quit(session_t *sess){}
+static void do_quit(session_t *sess)
+{
+	ftp_reply(sess, FTP_GOODBYE, "Goodbye.");
+	exit(EXIT_SUCCESS);
+}
 static void do_port(session_t *sess)
 {
 	unsigned int v[6];
@@ -988,6 +1041,11 @@ static void do_retr(session_t *sess)
 		
 		//下载限速
 		limit_rate(sess, ret, 0);
+		if(sess->abor_received)	//睡眠时收到ABOR命令
+		{
+			flag = 2;	//给客户端426应答
+			break;
+		}
 
 		bytes_to_send -= ret;
 	}
@@ -1004,7 +1062,7 @@ static void do_retr(session_t *sess)
 	sess->data_fd = -1;
 	sess->port_addr = NULL;
 
-	if(flag == 0)	//传输成功
+	if(flag == 0 && !sess->abor_received)	//传输成功
 	{
 		//响应226
 		ftp_reply(sess, FTP_TRANSFEROK, "Transfer complete.");
@@ -1023,7 +1081,7 @@ static void do_retr(session_t *sess)
 
 	close(fd);
 	
-	
+	check_abor(sess);
 	start_cmdio_alarm();	//重启控制连接通道闹钟
 }
 static void do_stor(session_t *sess)
@@ -1088,7 +1146,10 @@ static void do_rest(session_t *sess)
 	sprintf(text, "Restart position accepted (%lld).", sess->restart_pos);
 	ftp_reply(sess, FTP_RESTOK, text);
 }
-static void do_abor(session_t *sess){}
+static void do_abor(session_t *sess)
+{
+	ftp_reply(sess, FTP_ABOR_NOCONN, "No transfer to ABOR.");
+}
 static void do_pwd(session_t *sess)
 {
 	char text[1024] = {0};
@@ -1208,5 +1269,8 @@ static void do_size(session_t *sess)
 	ftp_reply(sess, FTP_SIZEOK, text);
 }
 static void do_stat(session_t *sess){}
-static void do_noop(session_t *sess){}
+static void do_noop(session_t *sess)
+{
+	ftp_reply(sess, FTP_NOOPOK, "NOOP ok.");
+}
 static void do_help(session_t *sess){}
