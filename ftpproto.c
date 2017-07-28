@@ -284,6 +284,8 @@ void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 		if(bw_rate <= sess->bw_upload_rate_max)
 		{
 			//不需要限速
+			sess->bw_transfer_start_sec = get_time_sec();
+			sess->bw_transfer_start_usec = get_time_usec();
 			return ;
 		}
 
@@ -294,6 +296,8 @@ void limit_rate(session_t *sess, int bytes_transfered, int is_upload)
 		if(bw_rate <= sess->bw_download_rate_max)
 		{
 			//不需要限速
+			sess->bw_transfer_start_sec = get_time_sec();
+			sess->bw_transfer_start_usec = get_time_usec();
 			return ;
 		}
 
