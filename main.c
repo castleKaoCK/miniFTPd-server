@@ -6,6 +6,7 @@
 #include "parseconf.h"
 #include "ftpproto.h"
 #include "ftpcodes.h"
+#include "hash.h"
 
 
 
@@ -17,10 +18,17 @@ void pipe_handler()
 extern session_t *p_sess;
 static unsigned int s_children;
 
-void check_limits(session_t *sess);
+static hash_t *s_ip_count_hash;	//IP与计数之间的对应
+static hash_t *s_pid_ip_hash;	//PID与IP之间的对应
 
+void check_limits(session_t *sess);
 void handle_sigchld(int sig);
 
+unsigned int hash_func(unsigned int buckets, void * key);
+
+unsigned int handle_ip_count(void * ip);
+
+void drop_ip_count(void *ip);
 int main(void)
 {
 /*
@@ -87,7 +95,7 @@ int main(void)
 		/*FTP协议状态*/
 		0, 0, NULL, 0,
 		/*连接数限制*/
-		0
+		0, 0
 	};
 
 	p_sess = &sess;
@@ -95,12 +103,16 @@ int main(void)
 	sess.bw_upload_rate_max = tunable_upload_max_rate;
 	sess.bw_download_rate_max = tunable_download_max_rate;
 
-	signal(SIGCHLD, handle_sigchld);	//忽略子进程结束信号
+	s_ip_count_hash = hash_alloc(256, hash_func);	//创建IP哈希表
+	s_pid_ip_hash = hash_alloc(256, hash_func);
+
+	signal(SIGCHLD, handle_sigchld);	//子进程结束信号
 	signal(SIGPIPE, pipe_handler);
 
 	int listenfd = tcp_server(NULL, 5188);	//封装功能，直接返回监听套接字
 	int conn;
 	pid_t pid;
+	struct sockaddr_in addr;
 
 	/*
 	 *	等待用户连接,对每个客户端创建一个进程
@@ -108,13 +120,15 @@ int main(void)
 	 *	子进程开启新会话为客户端服务
 	 */
 	while(1){
-		conn = accept_timeout(listenfd, NULL, 0);
+		conn = accept_timeout(listenfd, &addr, 0);
 		if(conn == -1)
 			ERR_EXIT("accept_timeout");
 
-		
+		unsigned int ip = addr.sin_addr.s_addr;	//当前连接的客户端IP
+
 		++s_children;
-		sess.num_clients = s_children;
+		sess.num_clients = s_children;	//当前连接数
+		sess.num_this_ip = handle_ip_count(&ip);	//当前IP连接数
 
 		pid = fork();
 		if(pid == -1)
@@ -135,8 +149,12 @@ int main(void)
 			begin_session(&sess);	//开启新任务
 		}
 		else
+		{
+			hash_add_entry(s_pid_ip_hash, &pid, sizeof(pid_t),
+				&ip, sizeof(unsigned int));
+			printf("main : this connection pid is %d*****************************************************************************\n",pid);
 			close(conn);
-			
+		}
 	}
 
 	return 0;
@@ -152,16 +170,114 @@ void check_limits(session_t *sess)
 		
 		exit(EXIT_FAILURE);
 	}
+	
+	if(tunable_max_per_ip > 0 && sess->num_this_ip > tunable_max_per_ip)
+	{
+		ftp_reply(sess, FTP_IP_LIMIT, "There are too many \
+			connectings from your internet address.");
+		
+		exit(EXIT_FAILURE);
+	}
 }
 
 
 void handle_sigchld(int sig)
 {
 	pid_t pid;
-	while((pid = waitpid(-1 , NULL, WNOHANG) > 0))	//若未等待到任何子进程，会立即返回
+	/*
+	while((pid = waitpid(0 , NULL, WNOHANG) > 0))	//循环等待多个子进程结束，防止有遗漏
 	{
-		;
+		--s_children;
+
+		printf("signal : this connection pid is %d  errno: %d  ***************************************************************************\n", pid, errno);
+
+		unsigned int *ip = hash_lookup_entry(s_pid_ip_hash, &pid, sizeof(pid_t));
+		
+		if(ip == NULL)
+		{
+			printf("handle_if continue**********************************************************************************************\n");
+			continue;
+		}
+		
+		printf("handle  drop _if **********************************************************************************************\n");
+		drop_ip_count(ip);
+		hash_free_entry(s_pid_ip_hash, &pid, sizeof(pid_t));
+	}
+	*/
+
+		pid = wait(NULL);
+		--s_children;
+
+		printf("signal : this connection pid is %d  errno: %d  ***************************************************************************\n", pid, errno);
+
+		unsigned int *ip = hash_lookup_entry(s_pid_ip_hash, &pid, sizeof(pid_t));
+		
+		if(ip == NULL)
+		{
+			printf("handle_if continue**********************************************************************************************\n");
+			//continue;
+			return ;
+		}
+		
+		printf("handle  drop _if **********************************************************************************************\n");
+		drop_ip_count(ip);
+		hash_free_entry(s_pid_ip_hash, &pid, sizeof(pid_t));
+}
+
+unsigned int hash_func(unsigned int buckets, void * key)
+{
+	unsigned int *number = (unsigned int *)key;
+
+	return (*number) % buckets;
+}
+
+
+unsigned int handle_ip_count(void * ip)
+{
+	static unsigned int count;
+	unsigned int *p_count = (unsigned int *)hash_lookup_entry(
+		s_ip_count_hash, ip, sizeof(unsigned int));
+	if(p_count == NULL)	//不存在此IP表项
+	{
+		count = 1;
+		hash_add_entry(s_ip_count_hash, ip, sizeof(unsigned int), 
+			&count, sizeof(unsigned int));
+		printf("p_count == NULL:%d***************************************************************************\n",count);
+	}
+	else
+	{
+		count = *p_count;
+		++count;
+		*p_count = count;
+		printf("++ count:%d**********************************************************************************\n",count);
+	}
+	return count;
+}
+
+void drop_ip_count(void *ip)
+{
+	unsigned int count;
+	unsigned int *p_count = (unsigned int *)hash_lookup_entry(
+		s_ip_count_hash, ip, sizeof(unsigned int));
+	if(p_count == NULL)	//不存在此IP表项
+	{
+		return ;
+	}
+	
+	
+	count = *p_count;
+	printf("drop count:%d*****************************************\n",count);
+	if(count <= 0)
+		return ;
+	
+	--count;
+	*p_count = count;
+	
+	
+	if(count == 0)
+	{
+		hash_free_entry(s_ip_count_hash, ip, sizeof(unsigned int));
 	}
 
-	--s_children;
+	printf("drop count:%d*****************************************\n",count);
 }
