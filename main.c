@@ -55,6 +55,11 @@ int main(void)
 	int n = str_octal_to_uint("711");
 	printf("n=%d\n",n);
 */
+
+
+	daemon(1, 0);	//变成守护进程
+
+
 	parseconf_load_file(MINIFTP_CONF);
 	printf("tunable_pasv_enable=%d\n", tunable_pasv_enable);
 	printf("tunable_port_enable=%d\n", tunable_port_enable);
@@ -184,8 +189,8 @@ void check_limits(session_t *sess)
 void handle_sigchld(int sig)
 {
 	pid_t pid;
-	/*
-	while((pid = waitpid(0 , NULL, WNOHANG) > 0))	//循环等待多个子进程结束，防止有遗漏
+	
+	while((pid = waitpid(0 , NULL, WNOHANG)) > 0)	//循环等待多个子进程结束，防止有遗漏
 	{
 		--s_children;
 
@@ -203,8 +208,9 @@ void handle_sigchld(int sig)
 		drop_ip_count(ip);
 		hash_free_entry(s_pid_ip_hash, &pid, sizeof(pid_t));
 	}
-	*/
+	
 
+/*
 		pid = wait(NULL);
 		--s_children;
 
@@ -222,6 +228,7 @@ void handle_sigchld(int sig)
 		printf("handle  drop _if **********************************************************************************************\n");
 		drop_ip_count(ip);
 		hash_free_entry(s_pid_ip_hash, &pid, sizeof(pid_t));
+*/
 }
 
 unsigned int hash_func(unsigned int buckets, void * key)
